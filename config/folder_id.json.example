@@ -1,0 +1,16 @@
+{
+    "train":{
+        "danger": "id",
+        "kid_danger": "id",
+        "no_light": "id",
+        "not_danger": "id",
+        "oven_empty": "id"
+    },
+    "test":{
+        "danger": "id",
+        "kid_danger": "id",
+        "no_light": "id",
+        "not_danger": "id",
+        "oven_empty": "id"
+    }
+}
