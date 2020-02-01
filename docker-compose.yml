@@ -1,0 +1,7 @@
+version: "3"
+services: 
+    drive_api:
+        build: ./
+        volumes: 
+            - ~/hs/projects/HomeSafety/:/root/hs/projects/HomeSafety/
+            - ./:/src
