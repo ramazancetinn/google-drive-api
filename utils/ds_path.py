@@ -13,4 +13,7 @@ class Path():
     @property
     def drive_uploaded(self) -> str:
         return os.path.join(self.cls_dir, "data", "drive_uploaded")
+    @property
+    def trained_model_dir(self) -> str:
+        return os.path.join(self.cls_dir, "trained_model", "versions")
 

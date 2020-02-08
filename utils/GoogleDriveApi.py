@@ -3,9 +3,10 @@ import os.path
 from googleapiclient.discovery import build, MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-
+import io
+from googleapiclient.http import MediaIoBaseDownload
 import logging
-
+import sys
 
 
 # path declerations
@@ -65,3 +66,82 @@ class GoogleDrive():
             logging.error(err)
             raise(err)
         return file
+
+    # returns file or folder info by given 'name' arg
+    def get_info(self, file_name):
+        service = self.create_service()
+        
+        folder = service.files().list(
+            q=f"name='{file_name}' and mimeType='application/vnd.google-apps.folder'",
+            fields='files(id, name, parents)'
+             ).execute()
+        
+        paths = [self.get_full_path(service,file) for file in folder["files"]]
+        return {"info": folder["files"], "paths": paths}
+    
+    # returns specific folder id by given folder_name args
+    
+    def get_folder_id(self, folder_name):
+        service = self.create_service()
+
+        folder = service.files().list(
+            q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder'",
+            fields='files(id)'
+        ).execute()
+
+        return folder["files"][0]["id"]
+    
+    # list the folder by given folder_id args
+    def list_folder(self, folder_id):
+        service = self.create_service()
+        
+        result = []
+        files = service.files().list(
+            pageSize='1000',
+            q=f"'{folder_id}' in parents",
+            fields='files(id, name, mimeType)').execute()
+        result.extend(files['files'])
+        
+        return result
+    
+    # download folder from drive by folder_id args
+    def download_folder(self, folder_name, folder_id, download_location):
+        items = self.list_folder(folder_id)
+        download_path = os.path.join(download_location, folder_name)
+
+        if not os.path.exists(download_path):
+            print("downloading", folder_name, "to ", download_location)
+            os.makedirs(download_path)
+            for item in items:
+                item_id = item["id"]
+                item_name = item["name"]
+                mime_type = item["mimeType"]
+                print("downloading", item_name, item_id, mime_type)
+                if mime_type == 'application/vnd.google-apps.folder':
+                    self.download_folder(folder_name = item_name, folder_id= item_id, download_location=download_path)
+                else:
+                    self.download_file(file_name = item_name, file_id= item_id, download_location=download_path)
+        else:
+            print("already exist")
+
+    #  dowload file from drive by file_id args
+    def download_file(self, file_name, file_id, download_location):
+        service = self.create_service()
+        request = service.files().get_media(fileId=file_id)
+        fh = io.FileIO(os.path.join(download_location, file_name), 'wb')
+        downloader = MediaIoBaseDownload(fh, request, 1024 * 1024 * 1024)
+        done = False
+        while not done:
+            try:
+                status, done = downloader.next_chunk()
+            except:
+                logger.error("Error while downloading file")
+    def get_full_path(self, service, folder):
+        if not 'parents' in folder:
+            return folder['name']
+        files = service.files().get(fileId=folder['parents'][0], fields='id, name, parents').execute()
+        path = files['name'] + '/' + folder['name']
+        while 'parents' in files:
+            files = service.files().get(fileId=files['parents'][0], fields='id, name, parents').execute()
+            path = files['name'] + '/' + path
+        return path
